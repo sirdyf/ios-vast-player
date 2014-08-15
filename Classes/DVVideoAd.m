@@ -14,7 +14,7 @@
 @synthesize identifier = _identifier;
 
 - (void)sendAsynchronousRequest:(NSURL*)url context:(NSString*)context
-{
+{ return;//!!!!!!!!!!!!!!!!!!
     if (url) {
         NSURLRequest *request = [NSURLRequest requestWithURL:url];
         [NSURLConnection sendAsynchronousRequest:request queue:[[NSOperationQueue alloc] init] completionHandler:^(NSURLResponse *response, NSData *data, NSError *error) {

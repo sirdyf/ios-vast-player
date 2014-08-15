@@ -133,13 +133,12 @@ NSString *const DVIABPlayerErrorDomain = @"DVIABPlayerErrorDomain";
         self.contentPlayerItemDidReachEnd = YES;
     });
 }
-
+static BOOL Kostyl = NO;
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
     if (context == DVIABPlayerInlineAdPlayerItemStatusObservationContext) {
         AVPlayerItemStatus status = [[change objectForKey:NSKeyValueChangeNewKey] integerValue];
         VLog(@"DVIABPlayerInlineAdPlayerItemStatusObservationContext %i", status);
-        
         dispatch_async(dispatch_get_main_queue(), ^{
             switch (status) {
                 case AVPlayerItemStatusReadyToPlay:
@@ -161,19 +160,25 @@ NSString *const DVIABPlayerErrorDomain = @"DVIABPlayerErrorDomain";
     }
     else if (context == DVIABContentPlayerRateObservationContext) {
         float rate = [[change objectForKey:NSKeyValueChangeNewKey] floatValue];
-        VLog(@"DVIABPlayerRateObservationContext %@ %f", self.currentItem, rate);
-        
+        VLog(@"DVIABPlayerRateObservationContext %@ %f status=%d", self.currentItem, rate,self.currentItem.status);
+//        !!!!!!!!!!!!!!
+      if (!Kostyl) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (rate > 0) {
-                self.contentPlayerItemDidReachEnd = NO;
-                
-                if (CMTimeCompare(CMTimeAbsoluteValue(self.currentItem.currentTime),
-                                  CMTimeMake(1, 1)) == -1) {
-                    self.playBreaksQueue = [[self.adPlaylist preRollPlayBreaks] mutableCopy];
-                    [self startPlayBreaksFromQueue];
-                }
-            }
+          if (rate > 0) {
+            Kostyl = YES;
+//            static dispatch_once_t onceToken;
+//            dispatch_once(&onceToken, ^{
+              self.contentPlayerItemDidReachEnd = NO;
+            NSLog(@"**************** %f    ********",CMTimeGetSeconds(CMTimeAbsoluteValue(self.currentItem.currentTime)));
+              if (CMTimeCompare(CMTimeAbsoluteValue(self.currentItem.currentTime),
+                                CMTimeMake(1, 1)) == -1) {//-1 = less than
+                self.playBreaksQueue = [[self.adPlaylist preRollPlayBreaks] mutableCopy];
+                [self startPlayBreaksFromQueue];
+              }
+//            });
+          }
         });
+      }
     }
     else if (context == DVIABAdPlayerRateObservationContext) {
         // Sometimes AVPlayer just stops playback before reaching end.
@@ -183,13 +188,15 @@ NSString *const DVIABPlayerErrorDomain = @"DVIABPlayerErrorDomain";
         VLog(@"DVIABPlayerRateObservationContext %@ %f", self.currentItem, rate);
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (rate == 0 && !paused) {
-                VLogV(self.playerLayer);
-                self.playerLayer.player = self.adPlayer;
-                [self.adPlayer play];
-            }
-            paused = NO;
-        });
+//      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (rate == 0 && !paused) {
+          VLogV(self.playerLayer);
+//          self.playerLayer.player = self.adPlayer;//!!!!!!!!!!!!!!!!!!!!!
+          [self.adPlayer play];
+        }
+        paused = NO;
+      });
+//        });
     }
     else {
         [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
@@ -217,7 +224,7 @@ NSString *const DVIABPlayerErrorDomain = @"DVIABPlayerErrorDomain";
         VLogV(boundaryTimes);
         
         DVIABPlayer* __block player = self;
-        if (boundaryTimes && boundaryTimes.count) {
+        if (boundaryTimes && boundaryTimes.count) {// wtf? !!!!!!
             self.playBreaksTimeObserver = [self addBoundaryTimeObserverForTimes:boundaryTimes queue:NULL usingBlock:^{
                 if (player.currentItem != player.contentPlayerItem) {
                     return;
@@ -233,7 +240,7 @@ NSString *const DVIABPlayerErrorDomain = @"DVIABPlayerErrorDomain";
             }];
         }
         
-        __block CMTime previousTime = kCMTimeNegativeInfinity;
+        __block CMTime previousTime = kCMTimeNegativeInfinity;// wtf? !!!!!!
         self.periodicTimeObserver = [self addPeriodicTimeObserverForInterval:CMTimeMakeWithSeconds(AD_PLAY_BREAK_MIN_INTERVAL_BETWEEN, 1) queue:NULL usingBlock:^(CMTime time) {
 //            VLogI((int)time.value);
             if (player.currentItem == player.contentPlayerItem &&
